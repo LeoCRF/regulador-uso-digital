@@ -3,6 +3,7 @@ package com.example.regulador_uso_digital.monitoring
 import android.app.AppOpsManager
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.os.Process
@@ -20,9 +21,14 @@ class UsageStatsHelper (private val context: Context) {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    fun requestUsagePermission() {
-        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-        context.startActivity(intent)
+    fun requestUsagePermission(): Boolean {
+        return try {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            context.startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
     }
 
     fun getUsageStatsLast24Hours(): List<UsageStats> {
@@ -32,11 +38,14 @@ class UsageStatsHelper (private val context: Context) {
         val endTime = System.currentTimeMillis()
         val startTime = endTime - (1000 * 60 * 60 * 24)
 
-        return usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
+        // Usando INTERVAL_BEST para melhores resultados
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_BEST,
             startTime,
             endTime
         )
+
+        return stats ?: emptyList()
 
     }
 }
