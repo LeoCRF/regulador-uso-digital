@@ -38,14 +38,10 @@ class UsageStatsHelper (private val context: Context) {
         val endTime = System.currentTimeMillis()
         val startTime = endTime - (1000 * 60 * 60 * 24)
 
-        // Usando INTERVAL_BEST para melhores resultados
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_BEST,
-            startTime,
-            endTime
-        )
+        // Usar queryAndAggregateUsageStats pode ser mais confiável para obter o total de tempo
+        // de apps como Instagram no período.
+        val statsMap = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
 
-        return stats ?: emptyList()
-
+        return statsMap.values.toList()
     }
 }
