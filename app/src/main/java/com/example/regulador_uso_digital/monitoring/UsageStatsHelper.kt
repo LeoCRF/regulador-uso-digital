@@ -31,17 +31,25 @@ class UsageStatsHelper (private val context: Context) {
         }
     }
 
-    fun getUsageStatsLast24Hours(): List<UsageStats> {
+    fun getUsageStatsRange(startTime: Long, endTime: Long): List<UsageStats> {
         val usageStatsManager =
             context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-
-        val endTime = System.currentTimeMillis()
-        val startTime = endTime - (1000 * 60 * 60 * 24)
-
-        // Usar queryAndAggregateUsageStats pode ser mais confiável para obter o total de tempo
-        // de apps como Instagram no período.
+        
+        // queryAndAggregateUsageStats evita a duplicação de tempo por pacote
         val statsMap = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
-
         return statsMap.values.toList()
+    }
+
+    fun getUsageStatsLast24Hours(): List<UsageStats> {
+        val calendar = Calendar.getInstance()
+        val endTime = calendar.timeInMillis
+        
+        // Início do dia atual (meia-noite) para o tempo "Hoje" ser real
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        val startTime = calendar.timeInMillis
+
+        return getUsageStatsRange(startTime, endTime)
     }
 }
