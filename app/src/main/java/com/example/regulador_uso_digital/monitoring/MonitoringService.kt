@@ -19,10 +19,8 @@ class MonitoringService : Service() {
 
     private val monitorRunnable = object : Runnable {
         override fun run() {
-            // Aqui podemos adicionar lógica para detectar mudanças bruscas ou apenas atualizar
-            // Por enquanto, apenas mantém o serviço vivo e pronto para consultas
             sendBroadcast(Intent("com.example.regulador_uso_digital.UPDATE_STATS"))
-            handler.postDelayed(this, 5000) // Atualiza a cada 5 segundos
+            handler.postDelayed(this, 15000) // Otimizado: 15 segundos
         }
     }
 
@@ -49,9 +47,11 @@ class MonitoringService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Monitoramento Ativo")
-            .setContentText("O Regulador de Uso Digital está monitorando o seu tempo.")
+            .setContentTitle("Monitoramento em execução")
+            .setContentText("O app está registrando seu tempo de uso silenciosamente.")
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_MIN) // Prioridade Mínima
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(pendingIntent)
             .build()
     }
@@ -61,8 +61,10 @@ class MonitoringService : Service() {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 "Canal de Monitoramento",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_LOW // Silencioso: não aparece o ícone no topo
             )
+            serviceChannel.description = "Usado para permitir o monitoramento em tempo real"
+            serviceChannel.setShowBadge(false)
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
         }

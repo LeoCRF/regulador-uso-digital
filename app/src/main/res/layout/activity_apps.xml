@@ -2,9 +2,11 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/apps_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/main_bg_gradient">
+    android:background="@drawable/main_bg_gradient"
+    tools:context=".AppsActivity">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -49,7 +51,8 @@
                         android:layout_width="14dp"
                         android:layout_height="14dp"
                         android:src="@android:drawable/ic_menu_rotate"
-                        app:tint="@color/text_white" />
+                        app:tint="@color/text_white"
+                        android:contentDescription="Reset" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -79,9 +82,12 @@
                     android:id="@+id/chip_group_filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:singleSelection="true">
+                    app:singleSelection="true"
+                    app:selectionRequired="true"
+                    app:checkedChip="@+id/chip_all">
 
                     <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_all"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -90,6 +96,7 @@
                         app:chipBackgroundColor="@color/accent_blue" />
 
                     <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_social"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -98,6 +105,25 @@
                         app:chipBackgroundColor="@color/inner_card" />
 
                     <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_messages"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mensagens"
+                        android:textColor="@color/text_grey"
+                        app:chipBackgroundColor="@color/inner_card" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_entertainment"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Entretenimento"
+                        android:textColor="@color/text_grey"
+                        app:chipBackgroundColor="@color/inner_card" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_games"
                         style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -133,42 +159,91 @@
             android:gravity="center"
             android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/nav_home"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_today"
-                app:tint="@color/text_grey"
-                android:clickable="true"
-                android:focusable="true" />
-
             <FrameLayout
-                android:id="@+id/nav_apps"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="32dp"
-                android:background="@drawable/nav_active_bg"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
+                android:id="@+id/nav_home"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:clickable="true"
                 android:focusable="true">
-
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_sort_by_size"
-                    app:tint="@color/text_white" />
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_today"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Home" />
             </FrameLayout>
 
-            <ImageView
-                android:id="@+id/nav_stats"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="32dp"
-                android:src="@android:drawable/ic_menu_month"
-                app:tint="@color/text_grey"
+            <FrameLayout
+                android:id="@+id/nav_apps"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:clickable="true"
-                android:focusable="true" />
+                android:focusable="true">
+                <View
+                    android:layout_width="56dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/nav_active_bg" />
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_sort_by_size"
+                    app:tint="@color/text_white"
+                    android:contentDescription="Apps" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/nav_semana"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_month"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Week" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/nav_tips"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_help"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Tips" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/nav_alertas"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_popup_reminder"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Alerts" />
+            </FrameLayout>
+
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

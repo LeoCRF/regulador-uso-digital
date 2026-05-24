@@ -21,21 +21,42 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <TextView
-                android:id="@+id/title_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Hoje"
-                android:textColor="@color/text_white"
-                android:textSize="32sp"
-                android:textStyle="bold" />
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Seu uso de tela em tempo real"
-                android:textColor="@color/text_grey"
-                android:textSize="14sp" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/title_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Hoje"
+                        android:textColor="@color/text_white"
+                        android:textSize="32sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Uso de tela em tempo real"
+                        android:textColor="@color/text_grey"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_monitoring"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:checked="true"
+                    app:thumbTint="@color/accent_blue"
+                    app:trackTint="@color/inner_card" />
+            </RelativeLayout>
 
             <!-- Card Tempo Total -->
             <androidx.cardview.widget.CardView
@@ -63,7 +84,8 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_recent_history"
-                            app:tint="@color/text_grey" />
+                            app:tint="@color/text_grey"
+                            android:contentDescription="History" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -232,6 +254,7 @@
                 android:layout_marginTop="32dp">
 
                 <TextView
+                    android:id="@+id/apps_list_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Apps mais usados hoje"
@@ -277,40 +300,88 @@
 
             <FrameLayout
                 android:id="@+id/nav_home"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/nav_active_bg"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:clickable="true"
                 android:focusable="true">
-
+                <View
+                    android:layout_width="56dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/nav_active_bg" />
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
+                    android:layout_gravity="center"
                     android:src="@android:drawable/ic_menu_today"
-                    app:tint="@color/text_white" />
+                    app:tint="@color/text_white"
+                    android:contentDescription="Home" />
             </FrameLayout>
 
-            <ImageView
+            <FrameLayout
                 android:id="@+id/nav_apps"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="32dp"
-                android:src="@android:drawable/ic_menu_sort_by_size"
-                app:tint="@color/text_grey"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:clickable="true"
-                android:focusable="true" />
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_sort_by_size"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Apps" />
+            </FrameLayout>
 
-            <ImageView
-                android:id="@+id/nav_stats"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="32dp"
-                android:src="@android:drawable/ic_menu_month"
-                app:tint="@color/text_grey"
+            <FrameLayout
+                android:id="@+id/nav_semana"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:clickable="true"
-                android:focusable="true" />
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_month"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Week" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/nav_tips"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_help"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Tips" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/nav_alertas"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_popup_reminder"
+                    app:tint="@color/text_grey"
+                    android:contentDescription="Alerts" />
+            </FrameLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

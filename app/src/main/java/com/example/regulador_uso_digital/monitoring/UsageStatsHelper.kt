@@ -35,19 +35,27 @@ class UsageStatsHelper (private val context: Context) {
         val usageStatsManager =
             context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         
-        // queryAndAggregateUsageStats evita a duplicação de tempo por pacote
-        val statsMap = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
-        return statsMap.values.toList()
+        // INTERVAL_BEST é o mais estável para buscar dias específicos no histórico
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_BEST,
+            startTime,
+            endTime
+        )
+        
+        // Agrupamos por pacote e pegamos o tempo total para evitar duplicatas ou listas vazias
+        return stats?.groupBy { it.packageName }?.map { (_, deviceStats) ->
+            deviceStats.maxBy { it.totalTimeInForeground }
+        } ?: emptyList()
     }
 
     fun getUsageStatsLast24Hours(): List<UsageStats> {
         val calendar = Calendar.getInstance()
         val endTime = calendar.timeInMillis
         
-        // Início do dia atual (meia-noite) para o tempo "Hoje" ser real
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
         val startTime = calendar.timeInMillis
 
         return getUsageStatsRange(startTime, endTime)
