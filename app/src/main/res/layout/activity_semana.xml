@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/main_bg_gradient">
+    android:background="@drawable/main_bg_gradient"
+    tools:context=".SemanaActivity">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -30,7 +31,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Análise detalhada do seu progresso"
+                android:text="Toque em um dia para ver o Top 3"
                 android:textColor="@color/text_grey"
                 android:textSize="14sp" />
 
@@ -64,7 +65,24 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Adicionaremos mais cards de estatísticas aqui -->
+            <!-- Título dinâmico para os apps do dia selecionado -->
+            <TextView
+                android:id="@+id/semana_list_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Top 3 aplicativos"
+                android:textColor="@color/text_white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <!-- Lista dos 3 apps mais usados -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/semana_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:nestedScrollingEnabled="false" />
 
         </LinearLayout>
     </ScrollView>

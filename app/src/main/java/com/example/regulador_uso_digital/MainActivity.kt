@@ -1,9 +1,6 @@
 package com.example.regulador_uso_digital
 
-import android.app.usage.UsageStats
-import android.app.usage.UsageStatsManager
 import android.content.*
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.Drawable
@@ -12,10 +9,11 @@ import android.os.Bundle
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -27,16 +25,14 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
-import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.formatter.ValueFormatter
-import com.github.mikephil.charting.highlight.Highlight
-import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
@@ -55,16 +51,13 @@ class MainActivity : AppCompatActivity() {
     private val appCache = mutableMapOf<String, CachedAppInfo>()
     private var launchablePackages = setOf<String>()
 
-    private val sharedPrefs by lazy { getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+    private val sharedPrefs by lazy { getSharedPreferences("prefs", MODE_PRIVATE) }
 
     data class CachedAppInfo(val name: String, val icon: Drawable)
 
     private val statsUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            // Se houver uma barra selecionada, não atualiza automaticamente
-            if (barChart.highlighted == null || barChart.highlighted.isEmpty()) {
-                refreshAllData(animateFlag = false)
-            }
+            refreshAllData(animateFlag = false)
         }
     }
 
@@ -93,12 +86,14 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.nav_apps).setOnClickListener {
             val intent = Intent(this, AppsActivity::class.java)
             startActivity(intent)
+            @Suppress("DEPRECATION")
             overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
 
         findViewById<View>(R.id.nav_semana).setOnClickListener {
             val intent = Intent(this, SemanaActivity::class.java)
             startActivity(intent)
+            @Suppress("DEPRECATION")
             overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
     }
@@ -119,20 +114,19 @@ class MainActivity : AppCompatActivity() {
             setScaleEnabled(false)
             legend.isEnabled = false
             setExtraOffsets(5f, 30f, 5f, 30f)
-            setTouchEnabled(true)
-            isHighlightPerTapEnabled = true
+            setTouchEnabled(false)
 
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
-                textColor = Color.parseColor("#9E9EBA")
+                textColor = "#9E9EBA".toColorInt()
                 textSize = 10f
             }
 
             axisLeft.apply {
                 setDrawGridLines(true)
-                gridColor = Color.parseColor("#222250")
-                textColor = Color.parseColor("#9E9EBA")
+                gridColor = "#222250".toColorInt()
+                textColor = "#9E9EBA".toColorInt()
                 textSize = 10f
                 axisMinimum = 0f
                 valueFormatter = object : ValueFormatter() {
@@ -140,45 +134,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             axisRight.isEnabled = false
-
-            // Lógica de clique nas barras
-            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
-                override fun onValueSelected(e: Entry?, h: Highlight?) {
-                    e?.let {
-                        val dayIndex = it.x.toInt()
-                        val daysAgo = 6 - dayIndex
-                        updateDisplayForSelectedDay(daysAgo)
-                    }
-                }
-                override fun onNothingSelected() {
-                    updateDisplayForSelectedDay(0)
-                }
-            })
-        }
-    }
-
-    private fun updateDisplayForSelectedDay(daysAgo: Int) {
-        lifecycleScope.launch {
-            val cal = Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_YEAR, -daysAgo)
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            }
-            val start = cal.timeInMillis
-            val end = if (daysAgo == 0) {
-                System.currentTimeMillis()
-            } else {
-                cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
-                cal.timeInMillis
-            }
-
-            val dayLabel = if (daysAgo == 0) "hoje" else {
-                SimpleDateFormat("EEEE", Locale("pt", "BR")).format(cal.time).replaceFirstChar { it.uppercase() }
-            }
-
-            withContext(Dispatchers.IO) {
-                val stats = usageStatsHelper.getUsageStatsRange(start, end)
-                processAndDisplayUsage(stats, end - start, dayLabel, animateList = true)
-            }
         }
     }
 
@@ -186,19 +141,18 @@ class MainActivity : AppCompatActivity() {
         val isMonitoring = sharedPrefs.getBoolean("monitoring_active", true)
         switchMonitoring.isChecked = isMonitoring
         switchMonitoring.setOnCheckedChangeListener { _, isChecked ->
-            sharedPrefs.edit().putBoolean("monitoring_active", isChecked).apply()
-            if (isChecked) triggerMonitoringService() else stopService(Intent(this, MonitoringService::class.java))
+            sharedPrefs.edit { putBoolean("monitoring_active", isChecked) }
+            if (isChecked) startMonitoringService() else stopMonitoringService()
         }
     }
 
-    private fun triggerMonitoringService() {
+    private fun startMonitoringService() {
         val intent = Intent(this, MonitoringService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            @Suppress("DEPRECATION")
-            startService(intent)
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+    }
+
+    private fun stopMonitoringService() {
+        stopService(Intent(this, MonitoringService::class.java))
     }
 
     private fun indexLaunchableApps() {
@@ -221,7 +175,7 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.registerReceiver(this, statsUpdateReceiver, IntentFilter("com.example.regulador_uso_digital.UPDATE_STATS"), ContextCompat.RECEIVER_EXPORTED)
 
         if (usageStatsHelper.hasUsagePermission()) {
-            if (sharedPrefs.getBoolean("monitoring_active", true)) triggerMonitoringService()
+            if (sharedPrefs.getBoolean("monitoring_active", true)) startMonitoringService()
             refreshAllData(animateFlag = true)
         } else {
             usageStatsHelper.requestUsagePermission()
@@ -234,52 +188,56 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshAllData(animateFlag: Boolean) {
+        val now = System.currentTimeMillis()
+        
         lifecycleScope.launch {
             launch(Dispatchers.IO) {
                 val cal = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                    timeInMillis = now
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
                 }
-                val start = cal.timeInMillis
-                val end = System.currentTimeMillis()
-                val stats = usageStatsHelper.getUsageStatsRange(start, end)
-                processAndDisplayUsage(stats, end - start, "hoje", animateList = animateFlag)
+                val startToday = cal.timeInMillis
+                val usageMap = usageStatsHelper.getTimeByEvents(startToday, now)
+                processAndDisplayUsage(usageMap, animateFlag, now, startToday)
             }
-            launch(Dispatchers.IO) { processAndDisplayChart(animateFlag) }
+            launch(Dispatchers.IO) { processAndDisplayChart(animateFlag, now) }
         }
     }
 
     private fun isRealUserApp(packageName: String): Boolean {
-        if (launchablePackages.isEmpty()) return !packageName.contains("android.systemui")
-        return launchablePackages.contains(packageName) && !packageName.contains("android.systemui")
+        return launchablePackages.contains(packageName) && 
+               !packageName.contains("android.systemui") && 
+               !packageName.contains("com.android.launcher")
     }
 
-    private suspend fun processAndDisplayUsage(usageStats: List<UsageStats>, limitTime: Long, label: String, animateList: Boolean) {
+    private suspend fun processAndDisplayUsage(usageMap: Map<String, Long>, animateList: Boolean, nowMs: Long, startTodayMs: Long) {
         val appUsageInfoList = mutableListOf<AppUsageInfo>()
-        var totalUsage = 0L
+        var totalToday = 0L
 
-        val filteredStats = usageStats.filter { it.totalTimeInForeground > 0 && isRealUserApp(it.packageName) }
-            .sortedByDescending { it.totalTimeInForeground }
+        val sortedPkgs = usageMap.keys.filter { (usageMap[it] ?: 0L) > 0 && isRealUserApp(it) }
+            .sortedByDescending { usageMap[it] ?: 0L }
 
-        // EXIBE APENAS OS 3 MAIS USADOS
-        val top3Stats = filteredStats.take(3)
-
-        for (stat in top3Stats) {
-            val appInfo = appCache[stat.packageName] ?: fetchAppInfo(stat.packageName)
+        for (pkg in sortedPkgs) {
+            val appInfo = appCache[pkg] ?: fetchAppInfo(pkg)
             if (appInfo != null) {
-                val cleanTime = Math.min(stat.totalTimeInForeground, limitTime)
-                appUsageInfoList.add(AppUsageInfo(appInfo.name, formatTime(cleanTime), appInfo.icon, cleanTime))
+                val time = usageMap[pkg] ?: 0L
+                appUsageInfoList.add(AppUsageInfo(appInfo.name, formatTime(time), appInfo.icon, time))
+                totalToday += time
             }
         }
-        
-        // Calcula o tempo total real (somando todos os apps reais do dia)
-        totalUsage = filteredStats.sumOf { Math.min(it.totalTimeInForeground, limitTime) }
 
         withContext(Dispatchers.Main) {
-            totalTimeTextView.text = formatTime(totalUsage)
-            appsUsedCountTextView.text = filteredStats.size.toString()
-            usageStatsAdapter.updateData(appUsageInfoList, totalUsage)
-            appsListLabel.text = "Apps mais usados $label"
-            if (animateList) recyclerView.scheduleLayoutAnimation()
+            val limitTime = nowMs - startTodayMs
+            val finalTotal = totalToday.coerceAtMost(limitTime)
+            
+            totalTimeTextView.text = formatTime(finalTotal)
+            appsUsedCountTextView.text = appUsageInfoList.size.toString()
+            usageStatsAdapter.updateData(appUsageInfoList, finalTotal)
+            appsListLabel.text = "Apps mais usados hoje"
+            if (animateList && shouldAnimateChart) recyclerView.scheduleLayoutAnimation()
         }
     }
 
@@ -292,37 +250,54 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) { null }
     }
 
-    private suspend fun processAndDisplayChart(animate: Boolean) {
+    private suspend fun processAndDisplayChart(animate: Boolean, nowMs: Long) {
         val entries = mutableListOf<BarEntry>()
         val labels = mutableListOf<String>()
         var totalPreviousUsage = 0L
-        val dayFormatter = SimpleDateFormat("EEE", Locale("pt", "BR"))
+        val dayFormatter = SimpleDateFormat("EEE", Locale.forLanguageTag("pt-BR"))
 
         for (i in 6 downTo 0) {
             val cal = Calendar.getInstance().apply {
+                timeInMillis = nowMs
                 add(Calendar.DAY_OF_YEAR, -i)
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
             }
             val start = cal.timeInMillis
-            val end = cal.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }.timeInMillis
+            
+            val end = if (i == 0) {
+                nowMs
+            } else {
+                cal.apply {
+                    set(Calendar.HOUR_OF_DAY, 23)
+                    set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59)
+                    set(Calendar.MILLISECOND, 999)
+                }.timeInMillis
+            }
 
-            val dailyTotal = usageStatsHelper.getUsageStatsRange(start, end).filter { isRealUserApp(it.packageName) }.sumOf { it.totalTimeInForeground }
-            val cappedTotal = Math.min(dailyTotal, 86400000L)
-
+            val dailyUsageMap = usageStatsHelper.getTimeByEvents(start, end)
+            val dailyTotal = dailyUsageMap.filter { isRealUserApp(it.key) }.values.sum()
+            
+            val dayLimit = if (i == 0) (nowMs - start) else 86400000L
+            val cappedTotal = dailyTotal.coerceAtMost(dayLimit)
+            
             entries.add(BarEntry((6 - i).toFloat(), cappedTotal.toFloat() / 3600000f))
             labels.add(dayFormatter.format(cal.time).replaceFirstChar { it.uppercase() })
+
             if (i > 0) totalPreviousUsage += cappedTotal
         }
 
         withContext(Dispatchers.Main) {
             val dataSet = BarDataSet(entries, "Horas").apply {
                 color = Color.WHITE
-                highLightColor = Color.parseColor("#3A86FF")
                 valueTextColor = Color.WHITE; valueTextSize = 10f
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
                         val totalMin = (value * 60).toInt()
-                        return if (totalMin / 60 > 0) "${totalMin/60}h ${totalMin%60}m" else "${totalMin}m"
+                        return if (totalMin / 60 > 0) "${totalMin / 60}h ${totalMin % 60}m" else "${totalMin}m"
                     }
                 }
             }
@@ -333,17 +308,20 @@ class MainActivity : AppCompatActivity() {
                 shouldAnimateChart = false
             } else barChart.invalidate()
 
-            val avgMillis = totalPreviousUsage / 6
+            val avgMillis = if (totalPreviousUsage > 0) totalPreviousUsage / 6 else 0L
             weeklyAverageTextView.text = formatTime(avgMillis)
             val totalTodayMillis = (entries.last().y * 3600000).toLong()
             val diff = totalTodayMillis - avgMillis
-            vsAverageTextView.text = (if (diff >= 0) "+" else "-") + formatTime(Math.abs(diff)) + " vs. média"
-            vsAverageTextView.setTextColor(if (diff > 0) Color.parseColor("#FFD600") else Color.parseColor("#00E676"))
+            
+            val diffSign = if (diff >= 0) "+" else "-"
+            vsAverageTextView.text = "$diffSign${formatTime(abs(diff))} vs. média"
+            vsAverageTextView.setTextColor(if (diff > 0) "#FFD600".toColorInt() else "#00E676".toColorInt())
         }
     }
 
     private fun formatTime(millis: Long): String {
-        val h = millis / 3600000; val m = (millis % 3600000) / 60000
+        val h = millis / 3600000
+        val m = (millis % 3600000) / 60000
         return if (h > 0) "${h}h ${m}m" else "${m}m"
     }
 }
