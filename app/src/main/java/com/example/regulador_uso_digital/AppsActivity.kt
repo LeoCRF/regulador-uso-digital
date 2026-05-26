@@ -26,9 +26,9 @@ class AppsActivity : AppCompatActivity() {
     private lateinit var usageStatsHelper: UsageStatsHelper
     private lateinit var recyclerView: RecyclerView
     private var adapter: AppLimitsAdapter? = null
-    private var allAppsList = listOf<AppLimitInfo>()
-    private var launchablePackages = setOf<String>()
     
+    // Fonte da verdade: contém absolutamente todos os apps com uso hoje
+    private var allAppsList = listOf<AppLimitInfo>()
     private var currentCategoryFilter = "TODOS"
     
     private val appCache = mutableMapOf<String, CachedAppInfo>()
@@ -59,9 +59,45 @@ class AppsActivity : AppCompatActivity() {
         setupFilters()
         setupResetButton()
         
+        refreshAppsData()
+    }
+
+    private fun setupFilters() {
+        val chipGroup: ChipGroup = findViewById(R.id.chip_group_filter)
+        chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
+            if (checkedIds.isEmpty()) {
+                group.check(R.id.chip_all)
+                return@setOnCheckedStateChangeListener
+            }
+
+            val checkedId = checkedIds[0]
+            currentCategoryFilter = when (checkedId) {
+                R.id.chip_social -> "SOCIAL"
+                R.id.chip_entertainment -> "ENTRETENIMENTO"
+                R.id.chip_games -> "JOGOS"
+                else -> "TODOS"
+            }
+            applyCurrentFilter()
+        }
+    }
+
+    private fun applyCurrentFilter() {
+        // Sempre filtramos a partir da allAppsList original para garantir consistência
+        val filtered = if (currentCategoryFilter == "TODOS") {
+            allAppsList
+        } else {
+            allAppsList.filter { it.category == currentCategoryFilter }
+        }
+        
+        // Passamos uma cópia da lista para o adapter
+        adapter?.updateData(filtered.toList())
+    }
+
+    private fun refreshAppsData() {
         lifecycleScope.launch {
-            indexLaunchableApps()
-            refreshAppsData()
+            val appsList = withContext(Dispatchers.IO) { loadAppsDataAsync() }
+            allAppsList = appsList
+            applyCurrentFilter()
         }
     }
 
@@ -81,16 +117,7 @@ class AppsActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun indexLaunchableApps() {
-        withContext(Dispatchers.IO) {
-            val intent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-            val resInfos = packageManager.queryIntentActivities(intent, 0)
-            launchablePackages = resInfos.map { it.activityInfo.packageName }.toSet()
-        }
-    }
-
     private fun setupNavigation() {
-        // Botão Hoje (1º)
         findViewById<View>(R.id.nav_home).setOnClickListener {
             val intent = Intent(this, MainActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
@@ -100,7 +127,6 @@ class AppsActivity : AppCompatActivity() {
             finish()
         }
 
-        // Botão Semana (3º)
         findViewById<View>(R.id.nav_semana).setOnClickListener {
             val intent = Intent(this, SemanaActivity::class.java)
             startActivity(intent)
@@ -115,85 +141,78 @@ class AppsActivity : AppCompatActivity() {
         findViewById<View>(R.id.nav_alertas).setOnClickListener(devListener)
     }
 
-    private fun setupFilters() {
-        val chipGroup: ChipGroup = findViewById(R.id.chip_group_filter)
-        chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
-            currentCategoryFilter = if (checkedIds.isEmpty()) {
-                "TODOS"
-            } else {
-                findViewById<Chip>(checkedIds[0]).text.toString().uppercase()
-            }
-            applyCurrentFilter()
-        }
-    }
-
-    private fun applyCurrentFilter() {
-        val filtered = if (currentCategoryFilter == "TODOS") {
-            allAppsList
-        } else {
-            val tag = when(currentCategoryFilter) {
-                "SOCIAL" -> "SOCIAL"
-                "MENSAGENS" -> "MENSAGENS"
-                "JOGOS" -> "JOGOS"
-                else -> "ENTRETENIMENTO"
-            }
-            allAppsList.filter { it.category == tag }
-        }
-        adapter?.updateData(filtered)
-    }
-
-    private fun refreshAppsData() {
-        lifecycleScope.launch {
-            val appsList = withContext(Dispatchers.IO) { loadAppsDataAsync() }
-            allAppsList = appsList
-            applyCurrentFilter()
-        }
+    private fun isRealUserApp(packageName: String): Boolean {
+        val systemBlacklist = listOf(
+            "com.android.systemui",
+            "android.systemui",
+            "com.google.android.inputmethod",
+            "com.android.launcher",
+            "com.android.settings"
+        )
+        return systemBlacklist.none { packageName.contains(it, ignoreCase = true) }
     }
 
     private suspend fun loadAppsDataAsync(): List<AppLimitInfo> {
-        val usageStats = usageStatsHelper.getUsageStatsLast24Hours()
+        val usageMap = usageStatsHelper.getUsageStatsToday()
         val pm = packageManager
         val appLimitList = mutableListOf<AppLimitInfo>()
 
-        for (stat in usageStats) {
-            val pkg = stat.packageName
-            if (!launchablePackages.contains(pkg)) continue
+        for ((pkg, totalTime) in usageMap) {
+            if (!isRealUserApp(pkg)) continue
+            if (totalTime <= 0) continue
 
             try {
                 val cached = appCache[pkg] ?: run {
                     val ai = pm.getApplicationInfo(pkg, 0)
                     val appName = pm.getApplicationLabel(ai).toString()
                     val icon = pm.getApplicationIcon(ai)
-                    
-                    val category = when {
-                        pkg.contains("whatsapp") || pkg.contains("telegram") || pkg.contains("messenger") || pkg.contains("message") -> "MENSAGENS"
-                        pkg.contains("instagram") || pkg.contains("facebook") || pkg.contains("tiktok") || pkg.contains("twitter") || pkg.contains("social") -> "SOCIAL"
-                        pkg.contains("game") || pkg.contains("clash") || pkg.contains("king") || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && ai.category == ApplicationInfo.CATEGORY_GAME) -> "JOGOS"
-                        else -> "ENTRETENIMENTO"
-                    }
+                    val category = detectCategory(pkg, ai)
                     
                     val info = CachedAppInfo(appName, icon, category)
                     appCache[pkg] = info
                     info
                 }
 
-                if (stat.totalTimeInForeground > 0) {
-                    val savedLimit = sharedPrefs.getInt("${pkg}_limit", 0)
-                    val savedSimulated = sharedPrefs.getInt("${pkg}_simulated", 0)
-                    val usageInMinutes = (stat.totalTimeInForeground / 60000).toInt()
-                    val recommended = (usageInMinutes * 0.85).toInt()
+                val savedLimit = sharedPrefs.getInt("${pkg}_limit", 0)
+                val savedSimulated = sharedPrefs.getInt("${pkg}_simulated", 0)
+                val usageInMinutes = (totalTime / 60000).toInt()
+                val recommended = (usageInMinutes * 0.85).toInt().coerceAtLeast(1)
 
-                    appLimitList.add(AppLimitInfo(
-                        pkg, cached.name, cached.category, formatTime(stat.totalTimeInForeground),
-                        cached.icon, stat.totalTimeInForeground,
-                        if (savedLimit > 0) savedLimit else recommended,
-                        savedSimulated,
-                        recommended
-                    ))
-                }
+                appLimitList.add(AppLimitInfo(
+                    pkg, cached.name, cached.category, formatTime(totalTime),
+                    cached.icon, totalTime,
+                    if (savedLimit > 0) savedLimit else recommended,
+                    savedSimulated,
+                    recommended
+                ))
             } catch (e: Exception) { }
         }
-        return appLimitList.sortedByDescending { it.usageMillis }
+        return appLimitList.distinctBy { it.packageName }.sortedByDescending { it.usageMillis }
+    }
+
+    private fun detectCategory(pkg: String, ai: ApplicationInfo): String {
+        val pkgLower = pkg.lowercase()
+        
+        // Prioridade 1: Keywords específicas (mais assertivo para apps conhecidos como YouTube)
+        val entKeywords = listOf("youtube", "netflix", "twitch", "disney", "primevideo", "hbo", "spotify", "deezer", "music", "video", "tv", "globo", "crunchyroll", "starplus", "paramount", "vlc", "player")
+        if (entKeywords.any { pkgLower.contains(it) }) return "ENTRETENIMENTO"
+
+        val socialKeywords = listOf("instagram", "facebook", "tiktok", "twitter", "x.android", "linkedin", "social", "reddit", "pinterest", "snapchat", "kwai", "threads", "tumblr", "beal", "whatsapp", "telegram", "messenger", "discord", "slack")
+        if (socialKeywords.any { pkgLower.contains(it) }) return "SOCIAL"
+
+        val gameKeywords = listOf("game", "clash", "king", "candy", "roblox", "freefire", "pubg", "fortnite", "toca", "mojang", "minecraft", "supercell", "playrix", "rovio")
+        if (gameKeywords.any { pkgLower.contains(it) }) return "JOGOS"
+
+        // Prioridade 2: Categorias do Sistema Android (API 26+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            when (ai.category) {
+                ApplicationInfo.CATEGORY_GAME -> return "JOGOS"
+                ApplicationInfo.CATEGORY_SOCIAL -> return "SOCIAL"
+                ApplicationInfo.CATEGORY_VIDEO, ApplicationInfo.CATEGORY_AUDIO -> return "ENTRETENIMENTO"
+            }
+        }
+
+        return "OUTROS"
     }
 
     private fun formatTime(millis: Long): String {
@@ -210,6 +229,6 @@ class AppsActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        unregisterReceiver(statsUpdateReceiver)
+        try { unregisterReceiver(statsUpdateReceiver) } catch (e: Exception) {}
     }
 }

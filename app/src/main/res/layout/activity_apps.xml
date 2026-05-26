@@ -92,8 +92,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Todos"
-                        android:textColor="@color/white"
-                        app:chipBackgroundColor="@color/accent_blue" />
+                        android:textColor="@color/chip_text_color_selector"
+                        app:chipBackgroundColor="@color/chip_background_selector" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_social"
@@ -101,17 +101,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Social"
-                        android:textColor="@color/text_grey"
-                        app:chipBackgroundColor="@color/inner_card" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chip_messages"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Mensagens"
-                        android:textColor="@color/text_grey"
-                        app:chipBackgroundColor="@color/inner_card" />
+                        android:textColor="@color/chip_text_color_selector"
+                        app:chipBackgroundColor="@color/chip_background_selector" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_entertainment"
@@ -119,8 +110,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Entretenimento"
-                        android:textColor="@color/text_grey"
-                        app:chipBackgroundColor="@color/inner_card" />
+                        android:textColor="@color/chip_text_color_selector"
+                        app:chipBackgroundColor="@color/chip_background_selector" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_games"
@@ -128,8 +119,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Jogos"
-                        android:textColor="@color/text_grey"
-                        app:chipBackgroundColor="@color/inner_card" />
+                        android:textColor="@color/chip_text_color_selector"
+                        app:chipBackgroundColor="@color/chip_background_selector" />
                 </com.google.android.material.chip.ChipGroup>
             </HorizontalScrollView>
 
