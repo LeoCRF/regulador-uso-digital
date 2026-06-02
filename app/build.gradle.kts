@@ -4,16 +4,12 @@ plugins {
 
 android {
     namespace = "com.example.regulador_uso_digital"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.regulador_uso_digital"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -48,6 +44,10 @@ dependencies {
 
     // Biblioteca para Gráficos
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // GSON para persistência de listas
+    implementation("com.google.code.gson:gson:2.10.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

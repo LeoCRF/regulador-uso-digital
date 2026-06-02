@@ -42,6 +42,8 @@
 
         <activity android:name=".AppsActivity" />
         <activity android:name=".SemanaActivity" />
+        <activity android:name=".AlertasActivity" />
+        <activity android:name=".DicasActivity" />
 
     </application>
 

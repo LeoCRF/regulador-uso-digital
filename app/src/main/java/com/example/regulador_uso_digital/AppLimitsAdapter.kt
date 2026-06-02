@@ -9,6 +9,8 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.appcompat.widget.AppCompatButton
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import java.util.Locale
@@ -22,7 +24,8 @@ data class AppLimitInfo(
     val usageMillis: Long,
     var currentLimitMinutes: Int = 0,
     var simulatedAdjustment: Int = 0,
-    var recommendedLimit: Int = 0
+    var recommendedLimit: Int = 0,
+    var isNotificationEnabled: Boolean = false
 )
 
 class AppLimitsAdapter(
@@ -40,6 +43,7 @@ class AppLimitsAdapter(
         val btnMinus: ImageButton = view.findViewById(R.id.btn_minus)
         val btnPlus: ImageButton = view.findViewById(R.id.btn_plus)
         val simulatedValue: TextView = view.findViewById(R.id.simulated_value)
+        val btnApply: AppCompatButton = view.findViewById(R.id.btn_apply_notification)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -77,6 +81,8 @@ class AppLimitsAdapter(
 
         holder.simulatedValue.text = if (app.simulatedAdjustment >= 0) "+${app.simulatedAdjustment} min" else "${app.simulatedAdjustment} min"
 
+        updateApplyButton(holder.btnApply, app.isNotificationEnabled)
+
         holder.btnPlus.setOnClickListener {
             app.simulatedAdjustment += 5
             notifyItemChanged(position)
@@ -89,6 +95,12 @@ class AppLimitsAdapter(
             onLimitChanged(app)
         }
         
+        holder.btnApply.setOnClickListener {
+            app.isNotificationEnabled = !app.isNotificationEnabled
+            updateApplyButton(holder.btnApply, app.isNotificationEnabled)
+            onLimitChanged(app)
+        }
+
         holder.editLimit.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
                 val newVal = holder.editLimit.text.toString().toIntOrNull() ?: 0
@@ -98,6 +110,18 @@ class AppLimitsAdapter(
                     onLimitChanged(app)
                 }
             }
+        }
+    }
+
+    private fun updateApplyButton(button: AppCompatButton, isEnabled: Boolean) {
+        if (isEnabled) {
+            button.text = "ATIVADO"
+            button.setBackgroundResource(R.drawable.nav_active_bg) // Supondo que este seja o estilo roxo/ativo
+            button.setTextColor(ContextCompat.getColor(button.context, R.color.text_white))
+        } else {
+            button.text = "APLICAR"
+            button.setBackgroundResource(R.drawable.inner_card_bg) // Estilo escuro/desativado
+            button.setTextColor(ContextCompat.getColor(button.context, R.color.text_grey))
         }
     }
 
@@ -111,7 +135,8 @@ class AppLimitsAdapter(
             override fun areContentsTheSame(oldPos: Int, newPos: Int) = 
                 apps[oldPos].usageMillis == newApps[newPos].usageMillis &&
                 apps[oldPos].simulatedAdjustment == newApps[newPos].simulatedAdjustment &&
-                apps[oldPos].currentLimitMinutes == newApps[newPos].currentLimitMinutes
+                apps[oldPos].currentLimitMinutes == newApps[newPos].currentLimitMinutes &&
+                apps[oldPos].isNotificationEnabled == newApps[newPos].isNotificationEnabled
         })
         this.apps = newApps
         diffResult.dispatchUpdatesTo(this)

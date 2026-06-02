@@ -165,5 +165,17 @@
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_apply_notification"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/inner_card_bg"
+            android:text="APLICAR"
+            android:textColor="@color/text_grey"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
     </LinearLayout>
 </androidx.cardview.widget.CardView>

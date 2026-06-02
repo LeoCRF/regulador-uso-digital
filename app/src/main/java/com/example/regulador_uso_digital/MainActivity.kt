@@ -84,15 +84,25 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupNavigation() {
         findViewById<View>(R.id.nav_apps).setOnClickListener {
-            val intent = Intent(this, AppsActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(this, AppsActivity::class.java))
             @Suppress("DEPRECATION")
             overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
 
         findViewById<View>(R.id.nav_semana).setOnClickListener {
-            val intent = Intent(this, SemanaActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(this, SemanaActivity::class.java))
+            @Suppress("DEPRECATION")
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+        }
+
+        findViewById<View>(R.id.nav_tips).setOnClickListener {
+            startActivity(Intent(this, DicasActivity::class.java))
+            @Suppress("DEPRECATION")
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+        }
+
+        findViewById<View>(R.id.nav_alertas).setOnClickListener {
+            startActivity(Intent(this, AlertasActivity::class.java))
             @Suppress("DEPRECATION")
             overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
