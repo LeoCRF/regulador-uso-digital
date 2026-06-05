@@ -1,14 +1,12 @@
 package com.example.regulador_uso_digital
 
 import android.content.*
-import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.drawable.Drawable
-import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -24,9 +22,7 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,18 +33,13 @@ class SemanaActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var usageStatsAdapter: UsageStatsAdapter
     private lateinit var listLabel: TextView
-
-    private val appCache = mutableMapOf<String, CachedAppInfo>()
-    private var launchablePackages = setOf<String>()
-    
-    data class CachedAppInfo(val name: String, val icon: Drawable)
+    private var weeklyTotals: List<Long> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_semana)
 
         usageStatsHelper = UsageStatsHelper(this)
-        
         barChart = findViewById(R.id.semana_detailed_chart)
         recyclerView = findViewById(R.id.semana_recycler_view)
         listLabel = findViewById(R.id.semana_list_label)
@@ -57,66 +48,48 @@ class SemanaActivity : AppCompatActivity() {
         setupInitialChart()
         setupNavigation()
         
-        lifecycleScope.launch {
-            indexLaunchableApps()
-            val now = System.currentTimeMillis()
-            updateChart(now)
-            updateTopAppsForDay(0, now) 
-        }
+        refreshData()
     }
 
     private fun setupRecyclerView() {
         usageStatsAdapter = UsageStatsAdapter(emptyList(), 0L)
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = usageStatsAdapter
-    }
-
-    private suspend fun indexLaunchableApps() {
-        withContext(Dispatchers.IO) {
-            val intent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-            val resInfos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0))
-            } else {
-                @Suppress("DEPRECATION")
-                packageManager.queryIntentActivities(intent, 0)
-            }
-            launchablePackages = resInfos.map { it.activityInfo.packageName }.toSet()
-        }
+        recyclerView.setHasFixedSize(true)
+        recyclerView.isNestedScrollingEnabled = false
     }
 
     private fun setupNavigation() {
-        findViewById<View>(R.id.nav_home).setOnClickListener {
-            val intent = Intent(this, MainActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            startActivity(intent)
-            @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-            finish()
+        val navClickListener = View.OnClickListener { v ->
+            val intent = when(v.id) {
+                R.id.nav_home -> Intent(this, MainActivity::class.java)
+                R.id.nav_apps -> Intent(this, AppsActivity::class.java)
+                R.id.nav_tips -> Intent(this, DicasActivity::class.java)
+                R.id.nav_alertas -> Intent(this, AlertasActivity::class.java)
+                else -> null
+            }
+            intent?.let {
+                startActivity(it)
+                @Suppress("DEPRECATION")
+                overridePendingTransition(0, 0)
+                finish()
+            }
         }
 
-        findViewById<View>(R.id.nav_apps).setOnClickListener {
-            val intent = Intent(this, AppsActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            startActivity(intent)
-            @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            finish()
-        }
+        findViewById<View>(R.id.nav_home).setOnClickListener(navClickListener)
+        findViewById<View>(R.id.nav_apps).setOnClickListener(navClickListener)
+        findViewById<View>(R.id.nav_tips).setOnClickListener(navClickListener)
+        findViewById<View>(R.id.nav_alertas).setOnClickListener(navClickListener)
+    }
 
-        findViewById<View>(R.id.nav_tips).setOnClickListener {
-            val intent = Intent(this, DicasActivity::class.java)
-            startActivity(intent)
-            @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            finish()
-        }
-
-        findViewById<View>(R.id.nav_alertas).setOnClickListener {
-            val intent = Intent(this, AlertasActivity::class.java)
-            startActivity(intent)
-            @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            finish()
+    private fun refreshData() {
+        lifecycleScope.launch {
+            weeklyTotals = withContext(Dispatchers.IO) {
+                usageStatsHelper.getDailyTotalsForLastWeek()
+            }
+            updateChartUI(weeklyTotals)
+            // Por padrão mostra o dia de hoje (índice 6 do gráfico, 0 dias atrás)
+            updateTopAppsForDay(0, weeklyTotals.lastOrNull() ?: 0L)
         }
     }
 
@@ -127,21 +100,21 @@ class SemanaActivity : AppCompatActivity() {
             setPinchZoom(false)
             setScaleEnabled(false)
             legend.isEnabled = false
-            setExtraOffsets(5f, 30f, 5f, 30f)
+            setExtraOffsets(5f, 40f, 5f, 10f) // Espaço para valores no topo
             setTouchEnabled(true)
-            isHighlightPerTapEnabled = true
-
+            
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
-                textColor = Color.parseColor("#9E9EBA")
+                textColor = "#9E9EBA".toColorInt()
                 textSize = 10f
+                granularity = 1f
             }
 
             axisLeft.apply {
                 setDrawGridLines(true)
-                gridColor = Color.parseColor("#222250")
-                textColor = Color.parseColor("#9E9EBA")
+                gridColor = "#222250".toColorInt()
+                textColor = "#9E9EBA".toColorInt()
                 textSize = 10f
                 axisMinimum = 0f
                 valueFormatter = object : ValueFormatter() {
@@ -153,130 +126,91 @@ class SemanaActivity : AppCompatActivity() {
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     e?.let {
-                        val dayIndex = it.x.toInt()
-                        updateTopAppsForDay(6 - dayIndex, System.currentTimeMillis())
+                        val index = it.x.toInt()
+                        val daysAgo = 6 - index
+                        val dayTotal = if (index in weeklyTotals.indices) weeklyTotals[index] else 0L
+                        updateTopAppsForDay(daysAgo, dayTotal)
                     }
                 }
                 override fun onNothingSelected() {
-                    updateTopAppsForDay(0, System.currentTimeMillis())
+                    updateTopAppsForDay(0, weeklyTotals.lastOrNull() ?: 0L)
                 }
             })
         }
     }
 
-    private fun updateTopAppsForDay(daysAgo: Int, nowMs: Long) {
+    private fun updateTopAppsForDay(daysAgo: Int, dayTotal: Long) {
         lifecycleScope.launch {
             val cal = Calendar.getInstance().apply { 
-                timeInMillis = nowMs
                 add(Calendar.DAY_OF_YEAR, -daysAgo)
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             }
-            val start = cal.timeInMillis
             
-            // Fim estrito: Se for hoje, limite é agora. Se for passado, limite é 23:59:59 do dia em questão.
-            val end = if (daysAgo == 0) nowMs else {
-                cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
-                cal.timeInMillis
-            }
-
-            val dayLimit = end - start
-            val locale = Locale.forLanguageTag("pt-BR")
             val dayName = if (daysAgo == 0) "Hoje" else {
-                SimpleDateFormat("EEEE", locale).format(cal.time).replaceFirstChar { it.uppercase() }
+                SimpleDateFormat("EEEE", Locale("pt", "BR")).format(cal.time).replaceFirstChar { it.uppercase() }
             }
+            
+            val dateStr = SimpleDateFormat("dd/MM", Locale("pt", "BR")).format(cal.time)
+            listLabel.text = "Top 3 aplicativos de $dayName ($dateStr)"
 
-            listLabel.text = "Top 3 aplicativos de $dayName"
-
-            withContext(Dispatchers.IO) {
-                val usageMap = usageStatsHelper.getTimeByEvents(start, end)
-                processStatsForTop3(usageMap, dayLimit)
-            }
-        }
-    }
-
-    private suspend fun processStatsForTop3(usageMap: Map<String, Long>, limitTime: Long) {
-        val filtered = usageMap.filter { launchablePackages.contains(it.key) && it.value > 0 }
-            .toList()
-            .sortedByDescending { it.second }
-        
-        val top3Stats = filtered.take(3)
-        val totalDaily = filtered.sumOf { it.second }.coerceAtMost(limitTime)
-        
-        val appUsageInfoList = top3Stats.mapNotNull { (pkg, time) ->
-            val info = appCache[pkg] ?: fetchAppInfo(pkg)
-            if (info != null) {
-                val cleanTime = time.coerceAtMost(limitTime)
-                AppUsageInfo(info.name, formatTime(cleanTime), info.icon, cleanTime)
-            } else null
-        }
-        
-        withContext(Dispatchers.Main) {
-            usageStatsAdapter.updateData(appUsageInfoList, totalDaily)
-        }
-    }
-
-    private fun fetchAppInfo(packageName: String): CachedAppInfo? {
-        return try {
-            val ai = packageManager.getApplicationInfo(packageName, 0)
-            val info = CachedAppInfo(packageManager.getApplicationLabel(ai).toString(), packageManager.getApplicationIcon(ai))
-            appCache[packageName] = info
-            info
-        } catch (e: Exception) { null }
-    }
-
-    private fun updateChart(nowMs: Long) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val entries = mutableListOf<BarEntry>()
-            val labels = mutableListOf<String>()
-            val locale = Locale.forLanguageTag("pt-BR")
-            val dayFormatter = SimpleDateFormat("EEE", locale)
-
-            for (i in 6 downTo 0) {
-                val cal = Calendar.getInstance().apply { 
-                    timeInMillis = nowMs
-                    add(Calendar.DAY_OF_YEAR, -i)
-                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                }
-                val start = cal.timeInMillis
+            val appList = withContext(Dispatchers.IO) {
+                val usageMap = usageStatsHelper.getTopAppsForDay(daysAgo)
                 
-                val end = if (i == 0) nowMs else {
-                    cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
-                    cal.timeInMillis
-                }
-
-                val dailyUsageMap = usageStatsHelper.getTimeByEvents(start, end)
-                val dailyTotal = dailyUsageMap.filter { launchablePackages.contains(it.key) }.values.sum()
-                
-                // Trava de segurança por dia
-                val dayLimit = if (i == 0) (nowMs - start) else 86400000L
-                val cappedTotal = dailyTotal.coerceAtMost(dayLimit)
-                
-                entries.add(BarEntry((6 - i).toFloat(), cappedTotal.toFloat() / 3600000f))
-                labels.add(dayFormatter.format(cal.time).replaceFirstChar { it.uppercase() })
-            }
-
-            withContext(Dispatchers.Main) {
-                val dataSet = BarDataSet(entries, "Horas").apply {
-                    color = Color.WHITE
-                    highLightColor = Color.parseColor("#3A86FF")
-                    valueTextColor = Color.WHITE; valueTextSize = 10f
-                    valueFormatter = object : ValueFormatter() {
-                        override fun getFormattedValue(value: Float): String {
-                            val totalMin = (value * 60).toInt()
-                            return if (totalMin / 60 > 0) "${totalMin/60}h ${totalMin%60}m" else "${totalMin}m"
-                        }
+                usageMap.toList()
+                    .sortedByDescending { it.second }
+                    .take(3)
+                    .mapNotNull { (pkg, time) ->
+                        val info = usageStatsHelper.getAppBasicInfo(pkg)
+                        if (info != null && time > 0) {
+                            AppUsageInfo(info.name, formatTime(time), info.icon, time)
+                        } else null
                     }
+            }
+            
+            usageStatsAdapter.updateData(appList, if (dayTotal > 0) dayTotal else appList.sumOf { it.timeMillis })
+            recyclerView.scheduleLayoutAnimation()
+        }
+    }
+
+    private fun updateChartUI(totals: List<Long>) {
+        val entries = mutableListOf<BarEntry>()
+        val labels = mutableListOf<String>()
+        val dayFormatter = SimpleDateFormat("EEE", Locale("pt", "BR"))
+
+        for (i in 0..6) {
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -(6 - i))
+            
+            val valueHours = totals[i].toFloat() / 3600000f
+            entries.add(BarEntry(i.toFloat(), valueHours))
+            labels.add(dayFormatter.format(cal.time).replaceFirstChar { it.uppercase() })
+        }
+
+        val dataSet = BarDataSet(entries, "").apply {
+            color = Color.WHITE
+            highLightColor = "#3A86FF".toColorInt()
+            setDrawValues(true)
+            valueTextColor = Color.WHITE
+            valueTextSize = 9f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    val totalMinutes = (value * 60).toInt()
+                    if (totalMinutes <= 0) return ""
+                    val h = totalMinutes / 60
+                    val m = totalMinutes % 60
+                    return if (h > 0) "${h}h ${m}m" else "${m}m"
                 }
-                barChart.data = BarData(dataSet).apply { barWidth = 0.5f }
-                barChart.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
-                barChart.animateY(1500, Easing.EaseOutQuart)
-                barChart.invalidate()
             }
         }
+        
+        barChart.data = BarData(dataSet).apply { barWidth = 0.5f }
+        barChart.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
+        barChart.animateY(1000, Easing.EaseOutQuart)
+        barChart.invalidate()
     }
 
     private fun formatTime(millis: Long): String {
-        val h = millis / 3600000; val m = (millis % 3600000) / 60000
+        val h = millis / 3600000
+        val m = (millis % 3600000) / 60000
         return if (h > 0) "${h}h ${m}m" else "${m}m"
     }
 }

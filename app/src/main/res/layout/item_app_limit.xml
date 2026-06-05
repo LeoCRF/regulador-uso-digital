@@ -71,10 +71,44 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="hoje"
+                    android:text="na semana"
                     android:textColor="@color/text_grey"
                     android:textSize="12sp" />
             </LinearLayout>
+        </LinearLayout>
+
+        <!-- Insight Didático -->
+        <TextView
+            android:id="@+id/tv_daily_insight"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@color/accent_pink"
+            android:textSize="13sp"
+            android:lineSpacingExtra="2dp"
+            android:textStyle="italic" />
+
+        <!-- Progresso de Hoje -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="PROGRESSO DE HOJE"
+                android:textColor="@color/text_grey"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tv_today_usage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_white"
+                android:textSize="10sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <ProgressBar
@@ -82,7 +116,7 @@
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="4dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="4dp"
             android:progressDrawable="@drawable/custom_progress_bar_red" />
 
         <LinearLayout
@@ -91,6 +125,7 @@
             android:layout_marginTop="20dp"
             android:orientation="horizontal">
 
+            <!-- Configuração de Limite -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -99,7 +134,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="LIMITE (MIN/DIA)"
+                    android:text="LIMITE (MINUTOS)"
                     android:textColor="@color/text_grey"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -114,8 +149,16 @@
                     android:paddingHorizontal="16dp"
                     android:textColor="@color/text_white"
                     android:textSize="16sp" />
+                <TextView
+                    android:id="@+id/tv_limit_formatted"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_grey"
+                    android:textSize="11sp" />
             </LinearLayout>
 
+            <!-- Simulação -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -151,7 +194,6 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:gravity="center"
-                        android:text="±5 min"
                         android:textColor="@color/text_white"
                         android:textSize="14sp" />
 

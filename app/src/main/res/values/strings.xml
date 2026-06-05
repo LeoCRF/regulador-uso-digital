@@ -1,3 +1,15 @@
 <resources>
-    <string name="app_name">regulador-uso-digital</string>
+    <string name="app_name">Regulador de Uso Digital</string>
+    <string name="label_na_semana">na semana</string>
+    <string name="label_progresso_hoje">PROGRESSO DE HOJE</string>
+    <string name="label_limite_minutos">LIMITE (MINUTOS)</string>
+    <string name="label_simular_uso">SIMULAR USO</string>
+    <string name="btn_aplicar">APLICAR</string>
+    <string name="btn_ativado">ATIVADO</string>
+    <string name="insight_format">Total na semana: %1$s\nMédia: %2$s/dia • Meta ideal: %3$s</string>
+    <string name="progress_format">%1$s usados de %2$s (limite hoje)</string>
+    <string name="equivalent_format">equivale a %1$s</string>
+    <string name="time_format_h_m">%1$dh %2$dm</string>
+    <string name="time_format_h">%1$dh</string>
+    <string name="time_format_m">%1$d min</string>
 </resources>

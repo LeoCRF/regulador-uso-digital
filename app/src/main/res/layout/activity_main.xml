@@ -231,13 +231,17 @@
                             android:textStyle="bold" />
 
                         <TextView
+                            android:id="@+id/btn_ver_relatorio"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"
                             android:text="Ver relatório →"
                             android:textColor="@color/accent_green"
                             android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:background="?attr/selectableItemBackground" />
                     </RelativeLayout>
 
                     <com.github.mikephil.charting.charts.BarChart
@@ -263,13 +267,17 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/btn_todos_apps"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
                     android:text="Todos →"
                     android:textColor="@color/accent_green"
                     android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground" />
             </RelativeLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -277,7 +285,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:nestedScrollingEnabled="false" />
+                android:nestedScrollingEnabled="false"
+                android:layoutAnimation="@anim/layout_animation_fall_down" />
 
         </LinearLayout>
     </ScrollView>

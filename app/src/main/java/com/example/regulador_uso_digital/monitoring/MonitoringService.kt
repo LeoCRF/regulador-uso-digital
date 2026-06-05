@@ -27,7 +27,7 @@ class MonitoringService : Service() {
         override fun run() {
             checkLimits()
             sendBroadcast(Intent("com.example.regulador_uso_digital.UPDATE_STATS"))
-            handler.postDelayed(this, 15000) // 15 segundos
+            handler.postDelayed(this, 15000) 
         }
     }
 
@@ -40,9 +40,7 @@ class MonitoringService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = createNotification()
         startForeground(1, notification)
-        
         handler.post(monitorRunnable)
-        
         return START_STICKY
     }
 
@@ -52,6 +50,9 @@ class MonitoringService : Service() {
         val pm = packageManager
 
         for ((pkg, totalTime) in usageMap) {
+            // Ignora apps de sistema e blacklist (Configurações, etc)
+            if (!usageStatsHelper.isRealUserApp(pkg)) continue
+
             val isNotifyEnabled = sharedPrefs.getBoolean("${pkg}_notify", false)
             if (!isNotifyEnabled) continue
 
@@ -63,7 +64,8 @@ class MonitoringService : Service() {
             if (usageMinutes >= limitMinutes) {
                 if (!notifiedApps.contains(pkg)) {
                     try {
-                        val appName = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                        val ai = pm.getApplicationInfo(pkg, 0)
+                        val appName = pm.getApplicationLabel(ai).toString()
                         sendLimitNotification(pkg, appName, usageMinutes, limitMinutes)
                         saveAlertToHistory(AlertLimit(appName, pkg, usageMinutes, limitMinutes, System.currentTimeMillis()))
                         notifiedApps.add(pkg)
@@ -87,11 +89,7 @@ class MonitoringService : Service() {
         }
         
         alerts.add(alert)
-        
-        // Limitar histórico a 50 itens
-        if (alerts.size > 50) {
-            alerts.removeAt(0)
-        }
+        if (alerts.size > 50) alerts.removeAt(0)
         
         sharedPrefs.edit().putString("alerts_history", gson.toJson(alerts)).apply()
     }
@@ -146,7 +144,6 @@ class MonitoringService : Service() {
                 NotificationManager.IMPORTANCE_LOW
             )
             serviceChannel.description = "Usado para permitir o monitoramento em tempo real"
-            serviceChannel.setShowBadge(false)
             manager?.createNotificationChannel(serviceChannel)
 
             val limitChannel = NotificationChannel(

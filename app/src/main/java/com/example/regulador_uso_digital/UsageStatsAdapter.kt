@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 
 data class AppUsageInfo(
@@ -51,22 +50,9 @@ class UsageStatsAdapter(
 
     override fun getItemCount() = usageStats.size
 
-    // Otimização Crucial: Atualiza apenas o que mudou, sem travar o app
     fun updateData(newUsageStats: List<AppUsageInfo>, newTotalDailyTime: Long) {
-        val diffCallback = object : DiffUtil.Callback() {
-            override fun getOldListSize() = usageStats.size
-            override fun getNewListSize() = newUsageStats.size
-            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return usageStats[oldItemPosition].appName == newUsageStats[newItemPosition].appName
-            }
-            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return usageStats[oldItemPosition].timeMillis == newUsageStats[newItemPosition].timeMillis &&
-                       totalDailyTime == newTotalDailyTime
-            }
-        }
-        val diffResult = DiffUtil.calculateDiff(diffCallback)
         this.usageStats = newUsageStats
         this.totalDailyTime = newTotalDailyTime
-        diffResult.dispatchUpdatesTo(this)
+        notifyDataSetChanged()
     }
 }
