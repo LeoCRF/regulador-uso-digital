@@ -44,7 +44,7 @@ Para rodar este projeto em sua máquina local, siga os passos abaixo:
 
 1.  **Clone o repositório:**
     ```bash
-    git clone https://github.com/seu-usuario/regulador-uso-digital.git
+    git clone https://github.com/LeoCRF/regulador-uso-digital.git
     ```
 2.  **Abra no Android Studio:**
     *   Selecione `File > Open` e escolha a pasta do projeto.
@@ -63,6 +63,6 @@ Para rodar este projeto em sua máquina local, siga os passos abaixo:
 Este projeto foca na **Experiência do Usuário (UX)** e na **Educação Digital**. A lógica de redução de 15% foi implementada para evitar o "choque" de uma mudança brusca de hábito, promovendo uma saúde mental sustentável no uso da tecnologia.
 
 ---
-**Desenvolvido por:** [Seu Nome/Grupo]
-**Disciplina:** [Nome da Disciplina]
-**Instituição:** [Nome da Faculdade]
+**Desenvolvido por:** Leo Matheus
+**Disciplina:** Fábrica de Software
+**Instituição:** UniGuairacá
