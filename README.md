@@ -44,7 +44,7 @@ Para rodar este projeto em sua máquina local, siga os passos abaixo:
 
 1.  **Clone o repositório:**
     ```bash
-    git clone https://github.com/seu-usuario/regulador-uso-digital.git
+    https://github.com/LeoCRF/regulador-uso-digital
     ```
 2.  **Abra no Android Studio:**
     *   Selecione `File > Open` e escolha a pasta do projeto.
