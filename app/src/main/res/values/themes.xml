@@ -13,4 +13,22 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+
+    <!-- Estilo customizado para o Alerta de Confirmação -->
+    <style name="CustomAlertDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <!-- Cor de fundo da caixa -->
+        <item name="colorSurface">@color/inner_card</item>
+        <!-- Cor do texto principal -->
+        <item name="colorOnSurface">@color/text_white</item>
+        <!-- Cor dos botões e títulos -->
+        <item name="colorPrimary">@color/primary_accent</item>
+        <!-- Cor do texto de mensagem -->
+        <item name="android:textColorSecondary">@color/text_grey</item>
+        <!-- Arredondamento das bordas -->
+        <item name="shapeAppearanceOverlay">@style/CustomDialogRoundedCorners</item>
+    </style>
+
+    <style name="CustomDialogRoundedCorners" parent="">
+        <item name="cornerSize">24dp</item>
+    </style>
 </resources>

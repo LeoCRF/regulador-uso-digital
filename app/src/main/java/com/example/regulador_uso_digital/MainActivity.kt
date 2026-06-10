@@ -163,7 +163,6 @@ class MainActivity : AppCompatActivity() {
         shouldAnimateCounters = true
 
         val filter = IntentFilter("com.example.regulador_uso_digital.UPDATE_STATS")
-        // Correção da linha 167: Uso do ContextCompat para registro seguro no Android 14+
         ContextCompat.registerReceiver(
             this,
             statsUpdateReceiver,

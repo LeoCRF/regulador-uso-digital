@@ -54,8 +54,8 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:checked="true"
-                    app:thumbTint="@color/accent_blue"
-                    app:trackTint="@color/inner_card" />
+                    app:thumbTint="@color/switch_thumb_selector"
+                    app:trackTint="@color/switch_track_selector" />
             </RelativeLayout>
 
             <!-- Card Tempo Total -->

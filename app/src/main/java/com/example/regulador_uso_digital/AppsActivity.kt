@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.regulador_uso_digital.monitoring.UsageStatsHelper
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.*
 
 class AppsActivity : AppCompatActivity() {
@@ -33,7 +34,6 @@ class AppsActivity : AppCompatActivity() {
 
     private val statsUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            // Atualização silenciosa via broadcast não deve animar a lista
             refreshAppsData(animate = false)
         }
     }
@@ -56,19 +56,13 @@ class AppsActivity : AppCompatActivity() {
     }
 
     private fun refreshAppsData(animate: Boolean) {
-        // Cancela qualquer carregamento anterior para evitar sobreposição
         currentLoadJob?.cancel()
         currentLoadJob = lifecycleScope.launch {
             val appsList = withContext(Dispatchers.IO) { loadAppsDataAsync() }
-            
-            // Verifica se a corrotina ainda está ativa antes de atualizar a UI
             if (!isActive) return@launch
-            
             allAppsList = appsList
             adapter?.updateData(allAppsList)
-            
             if (animate && appsList.isNotEmpty()) {
-                // Pequeno delay para garantir que o RecyclerView terminou o bind dos itens
                 delay(200)
                 recyclerView.scheduleLayoutAnimation()
             }
@@ -86,9 +80,16 @@ class AppsActivity : AppCompatActivity() {
 
     private fun setupResetButton() {
         findViewById<View>(R.id.btn_reset).setOnClickListener {
-            sharedPrefs.edit().clear().apply()
-            refreshAppsData(animate = true)
-            Toast.makeText(this, "Limites restaurados", Toast.LENGTH_SHORT).show()
+            MaterialAlertDialogBuilder(this, R.style.CustomAlertDialog)
+                .setTitle("Restaurar Padrões")
+                .setMessage("Deseja voltar todos os apps para a meta recomendada de 15% de redução?")
+                .setPositiveButton("Restaurar") { _, _ ->
+                    sharedPrefs.edit().clear().apply()
+                    refreshAppsData(animate = true)
+                    Toast.makeText(this, "Limites restaurados", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Cancelar", null)
+                .show()
         }
     }
 
@@ -119,14 +120,11 @@ class AppsActivity : AppCompatActivity() {
 
         for ((pkg, totalWeeklyTime) in weeklyUsageMap) {
             if (totalWeeklyTime <= 0) continue
-
             val todayTime = todayUsageMap[pkg] ?: 0L
             val dailyAverageMinutes = (totalWeeklyTime / (7 * 60000)).toInt()
             val healthyRecommendedLimit = (dailyAverageMinutes * 0.85).toInt().coerceAtLeast(5)
-
             try {
                 val ai = pm.getApplicationInfo(pkg, 0)
-                
                 val cached = appCache[pkg] ?: run {
                     val appName = pm.getApplicationLabel(ai).toString()
                     val icon = pm.getApplicationIcon(ai)
@@ -135,59 +133,37 @@ class AppsActivity : AppCompatActivity() {
                     appCache[pkg] = info
                     info
                 }
-
                 val savedLimit = sharedPrefs.getInt("${pkg}_limit", 0)
                 val savedSimulated = sharedPrefs.getInt("${pkg}_simulated", 0)
                 val savedNotify = sharedPrefs.getBoolean("${pkg}_notify", false)
-
                 appLimitList.add(AppLimitInfo(
-                    pkg, 
-                    cached.name, 
-                    cached.category, 
-                    formatTime(totalWeeklyTime),
-                    cached.icon, 
-                    todayTime,
-                    totalWeeklyTime,
-                    dailyAverageMinutes,
+                    pkg, cached.name, cached.category, formatTime(totalWeeklyTime),
+                    cached.icon, todayTime, totalWeeklyTime, dailyAverageMinutes,
                     if (savedLimit > 0) savedLimit else healthyRecommendedLimit,
-                    savedSimulated,
-                    healthyRecommendedLimit,
-                    savedNotify
+                    savedSimulated, healthyRecommendedLimit, savedNotify
                 ))
             } catch (e: Exception) { 
                 val fallbackName = pkg.split(".").lastOrNull() ?: pkg
                 val fallbackIcon = pm.defaultActivityIcon
-                
                 val savedLimit = sharedPrefs.getInt("${pkg}_limit", 0)
                 val savedSimulated = sharedPrefs.getInt("${pkg}_simulated", 0)
                 val savedNotify = sharedPrefs.getBoolean("${pkg}_notify", false)
-
                 appLimitList.add(AppLimitInfo(
                     pkg, fallbackName, "SISTEMA", formatTime(totalWeeklyTime),
-                    fallbackIcon, todayTime, totalWeeklyTime,
-                    dailyAverageMinutes,
+                    fallbackIcon, todayTime, totalWeeklyTime, dailyAverageMinutes,
                     if (savedLimit > 0) savedLimit else healthyRecommendedLimit,
                     savedSimulated, healthyRecommendedLimit, savedNotify
                 ))
             }
         }
-
-        return appLimitList
-            .distinctBy { it.packageName }
-            .sortedByDescending { it.weeklyUsageMillis }
+        return appLimitList.distinctBy { it.packageName }.sortedByDescending { it.weeklyUsageMillis }
     }
 
     private fun detectCategory(pkg: String, ai: ApplicationInfo): String {
         val pkgLower = pkg.lowercase()
-        val entKeywords = listOf("youtube", "netflix", "twitch", "disney", "primevideo", "hbo", "spotify", "deezer", "music", "video", "tv", "globo", "crunchyroll", "starplus", "paramount", "vlc", "player", "tiktok")
-        if (entKeywords.any { pkgLower.contains(it) }) return "ENTRETENIMENTO"
-
-        val socialKeywords = listOf("instagram", "facebook", "twitter", "x.android", "linkedin", "social", "reddit", "pinterest", "snapchat", "kwai", "threads", "tumblr", "beal", "whatsapp", "telegram", "messenger", "discord", "slack")
-        if (socialKeywords.any { pkgLower.contains(it) }) return "SOCIAL"
-
-        val gameKeywords = listOf("game", "clash", "king", "candy", "roblox", "freefire", "pubg", "fortnite", "toca", "mojang", "minecraft", "supercell", "playrix", "rovio")
-        if (gameKeywords.any { pkgLower.contains(it) }) return "JOGOS"
-
+        if (listOf("youtube", "netflix", "twitch", "disney", "primevideo", "hbo", "spotify", "deezer", "music", "video", "tv", "globo", "crunchyroll", "starplus", "paramount", "vlc", "player", "tiktok").any { pkgLower.contains(it) }) return "ENTRETENIMENTO"
+        if (listOf("instagram", "facebook", "twitter", "x.android", "linkedin", "social", "reddit", "pinterest", "snapchat", "kwai", "threads", "tumblr", "beal", "whatsapp", "telegram", "messenger", "discord", "slack").any { pkgLower.contains(it) }) return "SOCIAL"
+        if (listOf("game", "clash", "king", "candy", "roblox", "freefire", "pubg", "fortnite", "toca", "mojang", "minecraft", "supercell", "playrix", "rovio").any { pkgLower.contains(it) }) return "JOGOS"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             when (ai.category) {
                 ApplicationInfo.CATEGORY_GAME -> return "JOGOS"
@@ -200,10 +176,7 @@ class AppsActivity : AppCompatActivity() {
 
     private fun formatTime(millis: Long): String {
         val totalMinutes = (millis / 60000).toInt()
-        if (totalMinutes <= 0) {
-            val seconds = (millis / 1000).toInt()
-            return "${seconds}s"
-        }
+        if (totalMinutes <= 0) return "${(millis / 1000).toInt()}s"
         val h = totalMinutes / 60
         val m = totalMinutes % 60
         return when {
@@ -219,8 +192,6 @@ class AppsActivity : AppCompatActivity() {
             val filter = IntentFilter("com.example.regulador_uso_digital.UPDATE_STATS")
             ContextCompat.registerReceiver(this, statsUpdateReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
         } catch (e: Exception) {}
-        
-        // Dispara a animação apenas se for a primeira vez que entra na tela
         refreshAppsData(animate = isFirstLoad)
         isFirstLoad = false
     }

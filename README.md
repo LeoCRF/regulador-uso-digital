@@ -62,7 +62,3 @@ Para rodar este projeto em sua máquina local, siga os passos abaixo:
 
 Este projeto foca na **Experiência do Usuário (UX)** e na **Educação Digital**. A lógica de redução de 15% foi implementada para evitar o "choque" de uma mudança brusca de hábito, promovendo uma saúde mental sustentável no uso da tecnologia.
 
----
-**Desenvolvido por:** Leo Matheus
-**Disciplina:** Fábrica de Software
-**Instituição:** UniGuairacá
