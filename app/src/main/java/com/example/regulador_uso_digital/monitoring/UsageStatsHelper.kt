@@ -103,7 +103,7 @@ class UsageStatsHelper(private val context: Context) {
     }
 
     /**
-     * Motor de cálculo por eventos (Alta precisão para hoje).
+     * Motor de cálculo por eventos.
      */
     fun getTimeByEvents(startTime: Long, endTime: Long, filterRealApps: Boolean = true): Map<String, Long> {
         val stats = mutableMapOf<String, Long>()
