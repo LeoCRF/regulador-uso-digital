@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
+import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -33,7 +35,11 @@ class SemanaActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var usageStatsAdapter: UsageStatsAdapter
     private lateinit var listLabel: TextView
+    private lateinit var switchSystemApps: SwitchCompat
     private var weeklyTotals: List<Long> = emptyList()
+    
+    private val sharedPrefs by lazy { getSharedPreferences("prefs", MODE_PRIVATE) }
+    private var lastSelectedDaysAgo = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,12 +49,23 @@ class SemanaActivity : AppCompatActivity() {
         barChart = findViewById(R.id.semana_detailed_chart)
         recyclerView = findViewById(R.id.semana_recycler_view)
         listLabel = findViewById(R.id.semana_list_label)
+        switchSystemApps = findViewById(R.id.switch_system_apps_semana)
 
         setupRecyclerView()
         setupInitialChart()
         setupNavigation()
+        setupSwitch()
         
         refreshData()
+    }
+
+    private fun setupSwitch() {
+        val showSystem = sharedPrefs.getBoolean("show_system_apps", false)
+        switchSystemApps.isChecked = showSystem
+        switchSystemApps.setOnCheckedChangeListener { _, isChecked ->
+            sharedPrefs.edit { putBoolean("show_system_apps", isChecked) }
+            refreshData()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -83,13 +100,15 @@ class SemanaActivity : AppCompatActivity() {
     }
 
     private fun refreshData() {
+        val showSystem = sharedPrefs.getBoolean("show_system_apps", false)
+        val filterRealApps = !showSystem
+
         lifecycleScope.launch {
             weeklyTotals = withContext(Dispatchers.IO) {
-                usageStatsHelper.getDailyTotalsForLastWeek()
+                usageStatsHelper.getDailyTotalsForLastWeek(filterRealApps)
             }
             updateChartUI(weeklyTotals)
-            // Por padrão mostra o dia de hoje (índice 6 do gráfico, 0 dias atrás)
-            updateTopAppsForDay(0, weeklyTotals.lastOrNull() ?: 0L)
+            updateTopAppsForDay(lastSelectedDaysAgo, weeklyTotals[6 - lastSelectedDaysAgo])
         }
     }
 
@@ -100,7 +119,7 @@ class SemanaActivity : AppCompatActivity() {
             setPinchZoom(false)
             setScaleEnabled(false)
             legend.isEnabled = false
-            setExtraOffsets(5f, 40f, 5f, 10f) // Espaço para valores no topo
+            setExtraOffsets(5f, 40f, 5f, 10f)
             setTouchEnabled(true)
             
             xAxis.apply {
@@ -127,19 +146,20 @@ class SemanaActivity : AppCompatActivity() {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     e?.let {
                         val index = it.x.toInt()
-                        val daysAgo = 6 - index
+                        lastSelectedDaysAgo = 6 - index
                         val dayTotal = if (index in weeklyTotals.indices) weeklyTotals[index] else 0L
-                        updateTopAppsForDay(daysAgo, dayTotal)
+                        updateTopAppsForDay(lastSelectedDaysAgo, dayTotal)
                     }
                 }
-                override fun onNothingSelected() {
-                    updateTopAppsForDay(0, weeklyTotals.lastOrNull() ?: 0L)
-                }
+                override fun onNothingSelected() {}
             })
         }
     }
 
     private fun updateTopAppsForDay(daysAgo: Int, dayTotal: Long) {
+        val showSystem = sharedPrefs.getBoolean("show_system_apps", false)
+        val filterRealApps = !showSystem
+
         lifecycleScope.launch {
             val cal = Calendar.getInstance().apply { 
                 add(Calendar.DAY_OF_YEAR, -daysAgo)
@@ -153,7 +173,7 @@ class SemanaActivity : AppCompatActivity() {
             listLabel.text = "Top 3 aplicativos de $dayName ($dateStr)"
 
             val appList = withContext(Dispatchers.IO) {
-                val usageMap = usageStatsHelper.getTopAppsForDay(daysAgo)
+                val usageMap = usageStatsHelper.getTopAppsForDay(daysAgo, filterRealApps)
                 
                 usageMap.toList()
                     .sortedByDescending { it.second }

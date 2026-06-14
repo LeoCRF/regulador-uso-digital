@@ -9,7 +9,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +23,7 @@ class AppsActivity : AppCompatActivity() {
 
     private lateinit var usageStatsHelper: UsageStatsHelper
     private lateinit var recyclerView: RecyclerView
+    private lateinit var switchSystemApps: SwitchCompat
     private var adapter: AppLimitsAdapter? = null
 
     private var allAppsList = listOf<AppLimitInfo>()
@@ -30,7 +33,8 @@ class AppsActivity : AppCompatActivity() {
     private val appCache = mutableMapOf<String, CachedAppInfo>()
     data class CachedAppInfo(val name: String, val icon: Drawable, val category: String)
 
-    private val sharedPrefs by lazy { getSharedPreferences("app_limits", Context.MODE_PRIVATE) }
+    private val limitPrefs by lazy { getSharedPreferences("app_limits", Context.MODE_PRIVATE) }
+    private val globalPrefs by lazy { getSharedPreferences("prefs", MODE_PRIVATE) }
 
     private val statsUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -44,6 +48,7 @@ class AppsActivity : AppCompatActivity() {
 
         usageStatsHelper = UsageStatsHelper(this)
         recyclerView = findViewById(R.id.recycler_view_apps)
+        switchSystemApps = findViewById(R.id.switch_system_apps_list)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         adapter = AppLimitsAdapter(emptyList()) { updatedApp ->
@@ -53,6 +58,16 @@ class AppsActivity : AppCompatActivity() {
 
         setupNavigation()
         setupResetButton()
+        setupSwitch()
+    }
+
+    private fun setupSwitch() {
+        val showSystem = globalPrefs.getBoolean("show_system_apps", false)
+        switchSystemApps.isChecked = showSystem
+        switchSystemApps.setOnCheckedChangeListener { _, isChecked ->
+            globalPrefs.edit { putBoolean("show_system_apps", isChecked) }
+            refreshAppsData(animate = true)
+        }
     }
 
     private fun refreshAppsData(animate: Boolean) {
@@ -70,7 +85,7 @@ class AppsActivity : AppCompatActivity() {
     }
 
     private fun saveLimit(app: AppLimitInfo) {
-        sharedPrefs.edit().apply {
+        limitPrefs.edit().apply {
             putInt("${app.packageName}_limit", app.currentLimitMinutes)
             putInt("${app.packageName}_simulated", app.simulatedAdjustment)
             putBoolean("${app.packageName}_notify", app.isNotificationEnabled)
@@ -84,7 +99,7 @@ class AppsActivity : AppCompatActivity() {
                 .setTitle("Restaurar Padrões")
                 .setMessage("Deseja voltar todos os apps para a meta recomendada de 15% de redução?")
                 .setPositiveButton("Restaurar") { _, _ ->
-                    sharedPrefs.edit().clear().apply()
+                    limitPrefs.edit().clear().apply()
                     refreshAppsData(animate = true)
                     Toast.makeText(this, "Limites restaurados", Toast.LENGTH_SHORT).show()
                 }
@@ -113,8 +128,11 @@ class AppsActivity : AppCompatActivity() {
     }
 
     private suspend fun loadAppsDataAsync(): List<AppLimitInfo> {
-        val weeklyUsageMap = usageStatsHelper.getUsageStatsWeekly(filterRealApps = false)
-        val todayUsageMap = usageStatsHelper.getUsageStatsToday(filterRealApps = false)
+        val showSystem = globalPrefs.getBoolean("show_system_apps", false)
+        val filterRealApps = !showSystem
+
+        val weeklyUsageMap = usageStatsHelper.getUsageStatsWeekly(filterRealApps = filterRealApps)
+        val todayUsageMap = usageStatsHelper.getUsageStatsToday(filterRealApps = filterRealApps)
         val pm = packageManager
         val appLimitList = mutableListOf<AppLimitInfo>()
 
@@ -133,9 +151,9 @@ class AppsActivity : AppCompatActivity() {
                     appCache[pkg] = info
                     info
                 }
-                val savedLimit = sharedPrefs.getInt("${pkg}_limit", 0)
-                val savedSimulated = sharedPrefs.getInt("${pkg}_simulated", 0)
-                val savedNotify = sharedPrefs.getBoolean("${pkg}_notify", false)
+                val savedLimit = limitPrefs.getInt("${pkg}_limit", 0)
+                val savedSimulated = limitPrefs.getInt("${pkg}_simulated", 0)
+                val savedNotify = limitPrefs.getBoolean("${pkg}_notify", false)
                 appLimitList.add(AppLimitInfo(
                     pkg, cached.name, cached.category, formatTime(totalWeeklyTime),
                     cached.icon, todayTime, totalWeeklyTime, dailyAverageMinutes,
@@ -145,9 +163,9 @@ class AppsActivity : AppCompatActivity() {
             } catch (e: Exception) { 
                 val fallbackName = pkg.split(".").lastOrNull() ?: pkg
                 val fallbackIcon = pm.defaultActivityIcon
-                val savedLimit = sharedPrefs.getInt("${pkg}_limit", 0)
-                val savedSimulated = sharedPrefs.getInt("${pkg}_simulated", 0)
-                val savedNotify = sharedPrefs.getBoolean("${pkg}_notify", false)
+                val savedLimit = limitPrefs.getInt("${pkg}_limit", 0)
+                val savedSimulated = limitPrefs.getInt("${pkg}_simulated", 0)
+                val savedNotify = limitPrefs.getBoolean("${pkg}_notify", false)
                 appLimitList.add(AppLimitInfo(
                     pkg, fallbackName, "SISTEMA", formatTime(totalWeeklyTime),
                     fallbackIcon, todayTime, totalWeeklyTime, dailyAverageMinutes,

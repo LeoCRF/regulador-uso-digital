@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appsUsedCountTextView: TextView
     private lateinit var weeklyAverageTextView: TextView
     private lateinit var switchMonitoring: SwitchCompat
+    private lateinit var switchSystemApps: SwitchCompat
 
     private var shouldAnimateChart = true
     private var shouldAnimateCounters = true
@@ -66,11 +67,12 @@ class MainActivity : AppCompatActivity() {
         appsUsedCountTextView = findViewById(R.id.apps_used_count)
         weeklyAverageTextView = findViewById(R.id.weekly_average_text)
         switchMonitoring = findViewById(R.id.switch_monitoring)
+        switchSystemApps = findViewById(R.id.switch_system_apps)
 
         setupRecyclerView()
         setupInitialChart()
         setupNavigation()
-        setupMonitoringSwitch()
+        setupSwitches()
     }
 
     private fun setupNavigation() {
@@ -94,7 +96,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.nav_tips).setOnClickListener(navClickListener)
         findViewById<View>(R.id.nav_alertas).setOnClickListener(navClickListener)
         
-        // Novos botões de atalho no corpo da tela
         findViewById<View>(R.id.btn_ver_relatorio).setOnClickListener(navClickListener)
         findViewById<View>(R.id.btn_todos_apps).setOnClickListener(navClickListener)
     }
@@ -139,12 +140,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupMonitoringSwitch() {
+    private fun setupSwitches() {
+        // Switch Monitoramento
         val isMonitoring = sharedPrefs.getBoolean("monitoring_active", true)
         switchMonitoring.isChecked = isMonitoring
         switchMonitoring.setOnCheckedChangeListener { _, isChecked ->
             sharedPrefs.edit { putBoolean("monitoring_active", isChecked) }
             if (isChecked) startMonitoringService() else stopMonitoringService()
+        }
+
+        // Switch Apps de Sistema
+        val showSystem = sharedPrefs.getBoolean("show_system_apps", false)
+        switchSystemApps.isChecked = showSystem
+        switchSystemApps.setOnCheckedChangeListener { _, isChecked ->
+            sharedPrefs.edit { putBoolean("show_system_apps", isChecked) }
+            refreshAllData(animateFlag = true)
         }
     }
 
@@ -184,9 +194,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshAllData(animateFlag: Boolean) {
+        val showSystem = sharedPrefs.getBoolean("show_system_apps", false)
+        val filterRealApps = !showSystem
+
         lifecycleScope.launch {
-            val usageMap = withContext(Dispatchers.IO) { usageStatsHelper.getUsageStatsToday() }
-            val weeklyTotals = withContext(Dispatchers.IO) { usageStatsHelper.getDailyTotalsForLastWeek() }
+            val usageMap = withContext(Dispatchers.IO) { usageStatsHelper.getUsageStatsToday(filterRealApps) }
+            val weeklyTotals = withContext(Dispatchers.IO) { usageStatsHelper.getDailyTotalsForLastWeek(filterRealApps) }
             
             processAndDisplayUsage(usageMap, animateFlag)
             processAndDisplayChart(weeklyTotals, animateFlag)
@@ -278,7 +291,7 @@ class MainActivity : AppCompatActivity() {
             barChart.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
             
             if (animate && shouldAnimateChart) {
-                barChart.animateY(8000, Easing.EaseOutQuart)
+                barChart.animateY(3000, Easing.EaseOutQuart) // Reduzi o tempo para ser mais responsivo ao alternar sistema
                 shouldAnimateChart = false
             } else {
                 barChart.invalidate()
