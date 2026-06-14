@@ -6,7 +6,6 @@ import android.app.usage.UsageStatsManager
 import android.app.usage.UsageEvents
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -19,8 +18,7 @@ class UsageStatsHelper(private val context: Context) {
     companion object {
         private val nameCache = mutableMapOf<String, String>()
         private val iconCache = mutableMapOf<String, Drawable>()
-        // CACHE DE DESEMPENHO: Evita reprocessar apps já verificados
-        private val realAppCache = mutableMapOf<String, Boolean>()
+        private val launchableCache = mutableMapOf<String, Boolean>()
     }
 
     data class AppBasicInfo(val name: String, val icon: Drawable)
@@ -65,6 +63,9 @@ class UsageStatsHelper(private val context: Context) {
         }
     }
 
+    /**
+     * Uso de hoje com precisão por eventos.
+     */
     fun getUsageStatsToday(filterRealApps: Boolean = true): Map<String, Long> {
         val now = System.currentTimeMillis()
         val cal = Calendar.getInstance().apply {
@@ -74,6 +75,10 @@ class UsageStatsHelper(private val context: Context) {
         return getTimeByEvents(cal.timeInMillis, now, filterRealApps)
     }
 
+    /**
+     * Busca o uso da semana usando Agregação do Sistema.
+     * Método mais robusto para garantir que NADA fique de fora na aba Apps.
+     */
     fun getUsageStatsWeekly(filterRealApps: Boolean = false): Map<String, Long> {
         val now = System.currentTimeMillis()
         val cal = Calendar.getInstance().apply {
@@ -88,6 +93,7 @@ class UsageStatsHelper(private val context: Context) {
         for ((pkg, usageStats) in stats) {
             val time = usageStats.totalTimeInForeground
             if (time > 0) {
+                // Se filterRealApps for false, aceitamos TUDO.
                 if (!filterRealApps || isRealUserApp(pkg)) {
                     resultMap[pkg] = (resultMap[pkg] ?: 0L) + time
                 }
@@ -96,6 +102,9 @@ class UsageStatsHelper(private val context: Context) {
         return resultMap
     }
 
+    /**
+     * Motor de cálculo por eventos (Alta precisão para hoje).
+     */
     fun getTimeByEvents(startTime: Long, endTime: Long, filterRealApps: Boolean = true): Map<String, Long> {
         val stats = mutableMapOf<String, Long>()
         val events = try { usageStatsManager.queryEvents(startTime, endTime) } catch (e: Exception) { null } ?: return emptyMap()
@@ -129,56 +138,27 @@ class UsageStatsHelper(private val context: Context) {
         return stats
     }
 
-    fun getDailyTotalsForLastWeek(filterRealApps: Boolean = true): List<Long> {
+    fun getDailyTotalsForLastWeek(): List<Long> {
         val totals = MutableList(7) { 0L }
         for (i in 0..6) {
-            val stats = getTopAppsForDay(6 - i, filterRealApps)
+            val stats = getTopAppsForDay(6 - i)
             totals[i] = stats.values.sum()
         }
         return totals
     }
 
-    fun getTopAppsForDay(daysAgo: Int, filterRealApps: Boolean = true): Map<String, Long> {
+    fun getTopAppsForDay(daysAgo: Int): Map<String, Long> {
         val cal = Calendar.getInstance()
         cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
         val start = getStartOfDay(cal.timeInMillis)
         val end = if (daysAgo == 0) System.currentTimeMillis() else getEndOfDay(cal.timeInMillis)
-        return getTimeByEvents(start, end, filterRealApps)
+        return getTimeByEvents(start, end, true)
     }
 
     fun isRealUserApp(packageName: String?): Boolean {
         if (packageName == null || packageName == context.packageName) return false
-        
-        // Retorna do cache se já processado
-        realAppCache[packageName]?.let { return it }
-
-        val result = try {
-            val pm = context.packageManager
-            
-            if (packageName == "android" || 
-                packageName.contains("com.android.systemui") || 
-                packageName.contains("com.google.android.permissioncontroller") ||
-                packageName.contains("com.android.settings") ||
-                packageName.contains("com.google.android.setupwizard")
-            ) {
-                false
-            } else {
-                val ai = pm.getApplicationInfo(packageName, 0)
-                val isSystem = (ai.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
-                
-                if (isSystem) {
-                    // Apps de sistema que o usuário usa (Chrome, YT) aparecem no Launcher
-                    pm.getLaunchIntentForPackage(packageName) != null
-                } else {
-                    true
-                }
-            }
-        } catch (e: Exception) {
-            false
-        }
-
-        realAppCache[packageName] = result
-        return result
+        if (packageName == "android" || packageName.contains("com.android.systemui")) return false
+        return true
     }
 
     private fun getStartOfDay(millis: Long): Long {
